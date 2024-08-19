@@ -1,0 +1,159 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timesheet Application</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="timesheet-list"></div>
+    <button id="new-entry">New Entry</button>
+    <div id="form-container" style="display:none;">
+        <form id="timesheet-form">
+            <input type="hidden" id="id" name="id">
+            <label for="employee">Employee:</label>
+            <select id="employee" name="employee"></select><br>
+            <label for="reason">Reason:</label>
+            <select id="reason" name="reason">
+                <option value="1">Vacation</option>
+                <option value="2">Sick Leave</option>
+                <option value="3">Absenteeism</option>
+            </select><br>
+            <label for="start_date">Start Date:</label>
+            <input type="date" id="start_date" name="start_date"><br>
+            <label for="duration">Duration:</label>
+            <input type="number" id="duration" name="duration"><br>
+            <label for="discounted">Discounted:</label>
+            <input type="checkbox" id="discounted" name="discounted"><br>
+            <label for="description">Description:</label>
+            <textarea id="description" name="description"></textarea><br>
+            <button type="submit">Save</button>
+            <button type="button" id="cancel">Cancel</button>
+        </form>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            loadTimesheets();
+
+            document.getElementById('new-entry').addEventListener('click', function () {
+                document.getElementById('form-container').style.display = 'block';
+                document.getElementById('timesheet-form').reset();
+            });
+
+            document.getElementById('cancel').addEventListener('click', function () {
+                document.getElementById('form-container').style.display = 'none';
+            });
+
+            document.getElementById('timesheet-form').addEventListener('submit', function (event) {
+                event.preventDefault();
+                const timesheet = {
+                    id: document.getElementById('id').value,
+                    employee: document.getElementById('employee').value,
+                    reason: document.getElementById('reason').value,
+                    start_date: document.getElementById('start_date').value,
+                    duration: document.getElementById('duration').value,
+                    discounted: document.getElementById('discounted').checked,
+                    description: document.getElementById('description').value
+                };
+                if (timesheet.id) {
+                    updateTimesheet(timesheet);
+                } else {
+                    createTimesheet(timesheet);
+                }
+            });
+
+            loadEmployees();
+        });
+
+        function loadTimesheets() {
+            fetch('/api/timesheet')
+                .then(response => response.json())
+                .then(data => {
+                    const timesheetList = document.getElementById('timesheet-list');
+                    timesheetList.innerHTML = '';
+                    data.forEach(timesheet => {
+                        const div = document.createElement('div');
+                        div.innerHTML = `
+                                <p>${timesheet.EmployeeName} - ${timesheet.StartDate} - ${timesheet.Duration} days</p>
+                                <button onclick="editTimesheet(${timesheet.Id})">Edit</button>
+                                <button onclick="deleteTimesheet(${timesheet.Id})">Delete</button>
+                            `;
+                        timesheetList.appendChild(div);
+                    });
+                });
+        }
+
+        function loadEmployees() {
+            fetch('/api/employee')
+                .then(response => response.json())
+                .then(data => {
+                    const employeeSelect = document.getElementById('employee');
+                    employeeSelect.innerHTML = '';
+                    data.forEach(employee => {
+                        const option = document.createElement('option');
+                        option.value = employee.id;
+                        option.text = `${employee.firstName} ${employee.lastName}`;
+                        employeeSelect.appendChild(option);
+                    });
+                });
+        }
+
+        function createTimesheet(timesheet) {
+            fetch('/api/timesheet', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(timesheet)
+            }).then(response => {
+                if (response.ok) {
+                    document.getElementById('form-container').style.display = 'none';
+                    loadTimesheets();
+                }
+            });
+        }
+
+        function updateTimesheet(timesheet) {
+            fetch(`/api/timesheet/${timesheet.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(timesheet)
+            }).then(response => {
+                if (response.ok) {
+                    document.getElementById('form-container').style.display = 'none';
+                    loadTimesheets();
+                }
+            });
+        }
+
+        function editTimesheet(id) {
+            fetch(`/api/timesheet/${id}`)
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('form-container').style.display = 'block';
+                    document.getElementById('id').value = data.id;
+                    document.getElementById('employee').value = data.employee;
+                    document.getElementById('reason').value = data.reason;
+                    document.getElementById('start_date').value = data.startDate.split('T')[0];
+                    document.getElementById('duration').value = data.duration;
+                    document.getElementById('discounted').checked = data.discounted;
+                    document.getElementById('description').value = data.description;
+                });
+        }
+
+        function deleteTimesheet(id) {
+            fetch(`/api/timesheet/${id}`, {
+                method: 'DELETE'
+            }).then(response => {
+                if (response.ok) {
+                    loadTimesheets();
+                }
+            });
+        }
+    </script>
+</body>
+</html>
